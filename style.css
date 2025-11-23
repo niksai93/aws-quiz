@@ -102,3 +102,15 @@ button {
     color: #721c24;
     border: 1px solid #f5c6cb;
 }
+/* Styling for the Progress Tag */
+.status-tag {
+    background-color: #e1ecf4;
+    color: #39739d;
+    font-size: 0.9em;
+    font-weight: bold;
+    padding: 5px 15px;
+    border-radius: 20px;
+    display: inline-block; /* Makes it sit like a button */
+    margin-bottom: 20px;
+    border: 1px solid #ccdae3;
+}

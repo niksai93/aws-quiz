@@ -1,10 +1,4 @@
-// Helper function to shuffle an array
-function shuffleArray(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-    }
-}
+
 const quizContainer = document.getElementById('quiz');
 const resultsContainer = document.getElementById('results');
 const submitButton = document.getElementById('submit');
@@ -16,85 +10,146 @@ let score = 0;
 let wrongAnswers = [];
 
 // --- 1. Load Questions from JSON ---
+const SESSION_SIZE = 60;
+const STORAGE_KEY = 'aws_quiz_pool_indices';
+
+// Helper: Shuffle an array
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+}
+
+// --- NEW LOAD LOGIC ---
 async function loadQuestions() {
     try {
+        // 1. Fetch the Master List of all 1000+ questions
         const response = await fetch('./questions.json');
-        myQuestions = await response.json();
-        shuffleArray(myQuestions); // <--- ADD THIS LINE
+        const allData = await response.json();
+
+        // 2. Check Browser Memory: "Do we have a leftover pool of indices?"
+        let poolIndices = JSON.parse(localStorage.getItem(STORAGE_KEY));
+
+        // 3. If memory is empty (First time OR we finished all questions), create a new shuffled deck
+        if (!poolIndices || poolIndices.length === 0) {
+            console.log("Starting a fresh cycle of all questions!");
+            // Create a list of numbers [0, 1, 2, ... 1032]
+            poolIndices = Array.from({length: allData.length}, (_, i) => i);
+            shuffleArray(poolIndices); // Shuffle the IDs, not the huge data
+        }
+
+        // 4. Deal the cards: Take the next 60 IDs (or whatever is left)
+        const countToTake = Math.min(SESSION_SIZE, poolIndices.length);
+        const sessionIndices = poolIndices.slice(0, countToTake);
+
+        // 5. Update Memory: Remove the 60 we just took and save the rest
+        const remainingIndices = poolIndices.slice(countToTake);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(remainingIndices));
+
+        // 6. Build the actual question objects for THIS session
+        myQuestions = sessionIndices.map(index => allData[index]);
+
+        console.log(`Session loaded: ${myQuestions.length} questions.`);
+        console.log(`Remaining in pool for next time: ${remainingIndices.length}`);
+
+        // 7. Start the Quiz
         buildQuiz();
+
     } catch (error) {
-        quizContainer.innerHTML = '<p>Error loading questions. Check your questions.json file.</p>';
-        console.error("Failed to load quiz data:", error);
+        quizContainer.innerHTML = '<p>Error loading questions. Check console.</p>';
+        console.error(error);
     }
 }
 
 // --- 2. Display a Single Question ---
 function buildQuiz() {
+    // --- NEW CODE STARTS ---
+    const remaining = myQuestions.length - currentQuestionIndex;
+    const progressTag = document.getElementById('progress-tag');
+    progressTag.innerText = `Questions Pending: ${remaining}`;
+    // --- NEW CODE ENDS ---
+
     if (currentQuestionIndex >= myQuestions.length) {
         showResults();
         return;
     }
 
     const currentQuestion = myQuestions[currentQuestionIndex];
+    // Check if there is more than 1 correct answer
+    const isMultiSelect = currentQuestion.answer.length > 1;
+    const inputType = isMultiSelect ? 'checkbox' : 'radio';
+    const hint = isMultiSelect ? '<small style="color: blue;">(Select all that apply)</small>' : '';
+
     const choicesHtml = currentQuestion.choices.map((choice, index) => {
-        // Use A, B, C, D labels for display
         const label = String.fromCharCode(65 + index); 
         return `
             <label>
-                <input type="radio" name="question${currentQuestionIndex}" value="${choice}">
+                <input type="${inputType}" name="question${currentQuestionIndex}" value="${choice}">
                 ${label}. ${choice}
             </label>
         `;
     }).join('');
 
     quizContainer.innerHTML = `
-        <div class="question">${currentQuestionIndex + 1}. ${currentQuestion.question}</div>
+        <div class="question">
+            ${currentQuestionIndex + 1}. ${currentQuestion.question} ${hint}
+        </div>
         <div class="choices">${choicesHtml}</div>
     `;
 
-    // Hide the 'Next' button until an answer is submitted
+    // Logic for button text
+    if (currentQuestionIndex === myQuestions.length - 1) {
+        nextButton.textContent = "Finish Exam";
+    } else {
+        nextButton.textContent = "Next Question";
+    }
+
     nextButton.style.display = 'none';
     submitButton.style.display = 'inline-block';
 }
 
 // --- 3. Check the User's Answer ---
 function checkAnswer() {
+    // Get ALL checked inputs
     const selector = `input[name=question${currentQuestionIndex}]:checked`;
-    const userAnswer = (quizContainer.querySelector(selector) || {}).value;
+    const userInputs = document.querySelectorAll(selector);
+    
+    // Create a list of the user's selected values
+    const userAnswers = Array.from(userInputs).map(input => input.value);
 
-    // Remove any previous feedback
+    // Remove old feedback
     const feedback = quizContainer.querySelector('.feedback');
     if (feedback) feedback.remove();
 
-    if (userAnswer) {
-        const correct = userAnswer === myQuestions[currentQuestionIndex].answer;
+    if (userAnswers.length > 0) {
+        const correctAnswers = myQuestions[currentQuestionIndex].answer;
         
-        if (correct) {
+        // Compare arrays: Sort both and check if they match perfectly
+        // (JSON.stringify is a quick way to compare two arrays)
+        const isCorrect = JSON.stringify(userAnswers.sort()) === JSON.stringify(correctAnswers.sort());
+
+        if (isCorrect) {
             score++;
-            // Show Correct feedback
             quizContainer.insertAdjacentHTML('beforeend', '<div class="feedback correct">✅ Correct!</div>');
         } else {
-            // Show Incorrect feedback with the correct answer
-            const correctAnswer = myQuestions[currentQuestionIndex].answer;
-            quizContainer.insertAdjacentHTML('beforeend', `<div class="feedback incorrect">❌ Incorrect. The answer is: ${correctAnswer}</div>`);
-	// --- NEW CODE STARTS ---
-            // Save the mistake for later
+            // Show all correct answers
+            quizContainer.insertAdjacentHTML('beforeend', `<div class="feedback incorrect">❌ Incorrect. Correct answers: ${correctAnswers.join(", ")}</div>`);
+            
             wrongAnswers.push({
                 question: myQuestions[currentQuestionIndex].question,
-                correctAnswer: correctAnswer,
-                userChoice: userAnswer
+                correctAnswer: correctAnswers.join(", "),
+                userChoice: userAnswers.join(", ")
             });
-            // --- NEW CODE ENDS ---
         }
         
-        // Disable radio buttons after submission
-        quizContainer.querySelectorAll(`input[name=question${currentQuestionIndex}]`).forEach(radio => radio.disabled = true);
+        // Disable inputs
+        quizContainer.querySelectorAll(`input[name=question${currentQuestionIndex}]`).forEach(input => input.disabled = true);
         
-        // Show the 'Next' button
         nextButton.style.display = 'inline-block';
         submitButton.style.display = 'none';
     } else {
-        alert('Please select an answer before submitting.');
+        alert('Please select an answer.');
     }
 }
 
