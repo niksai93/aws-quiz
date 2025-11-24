@@ -3,7 +3,11 @@ const quizContainer = document.getElementById('quiz');
 const resultsContainer = document.getElementById('results');
 const submitButton = document.getElementById('submit');
 const nextButton = document.getElementById('next');
+const drawer = document.getElementById('question-drawer');
+const overlay = document.getElementById('overlay');
+// We will track which questions are answered using a simple array of booleans
 
+let answeredStatus = [];
 let myQuestions = [];
 let currentQuestionIndex = 0;
 let score = 0;
@@ -52,6 +56,9 @@ async function loadQuestions() {
 
         console.log(`Session loaded: ${myQuestions.length} questions.`);
         console.log(`Remaining in pool for next time: ${remainingIndices.length}`);
+
+        // Create an array of "false" for every question
+        answeredStatus = new Array(myQuestions.length).fill(false);
 
         // 7. Start the Quiz
         buildQuiz();
@@ -124,6 +131,8 @@ function checkAnswer() {
 
     if (userAnswers.length > 0) {
         const correctAnswers = myQuestions[currentQuestionIndex].answer;
+        // Mark this question as answered
+        answeredStatus[currentQuestionIndex] = true;
         
         // Compare arrays: Sort both and check if they match perfectly
         // (JSON.stringify is a quick way to compare two arrays)
@@ -192,4 +201,58 @@ nextButton.addEventListener('click', () => {
 
 // Start the quiz
 loadQuestions();
-document.getElementById('finish').addEventListener('click', showResults);
+// document.getElementById('finish').addEventListener('click', showResults);
+
+// --- DRAWER LOGIC ---
+
+function toggleDrawer() {
+    console.log("I WAS CLICKED!"); //
+    
+    const isOpen = drawer.classList.contains('open');
+    if (isOpen) {
+        drawer.classList.remove('open');
+        overlay.classList.remove('active');
+    } else {
+        renderDrawerGrid(); // Refresh the grid before opening
+        drawer.classList.add('open');
+        overlay.classList.add('active');
+    }
+}
+
+function renderDrawerGrid() {
+    const grid = document.getElementById('drawer-content');
+    grid.innerHTML = ''; // Clear old boxes
+
+    myQuestions.forEach((_, index) => {
+        const box = document.createElement('div');
+        box.classList.add('q-box');
+        box.innerText = index + 1;
+
+        // 1. Color if answered
+        if (answeredStatus[index]) {
+            box.classList.add('answered');
+        }
+
+        // 2. Border if current
+        if (index === currentQuestionIndex) {
+            box.classList.add('current');
+        }
+
+        // 3. Click to Jump (Optional feature: Navigation)
+        box.addEventListener('click', () => {
+            // Only allow jumping if the user hasn't finished the quiz
+            if (submitButton.style.display !== 'none' || nextButton.style.display !== 'none') {
+                currentQuestionIndex = index;
+                buildQuiz();
+                toggleDrawer(); // Close after clicking
+            }
+        });
+
+        grid.appendChild(box);
+    });
+
+// Event Listeners for the Drawer
+document.getElementById('menu-btn').addEventListener('click', toggleDrawer);
+document.getElementById('close-btn').addEventListener('click', toggleDrawer);
+overlay.addEventListener('click', toggleDrawer);
+}

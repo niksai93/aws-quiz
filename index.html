@@ -1,25 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AWS Cloud Practitioner Quiz</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <div class="quiz-container">
-        <h1>AWS Cloud Practitioner Practice Exam</h1>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>AWS Cloud Practitioner Quiz</title>
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+        <button id="menu-btn" class="menu-icon">☰ Questions</button>
+        <div id="question-drawer" class="drawer">
+            <div class="drawer-header">
+                <h3>Question Map</h3>
+                <button id="close-btn">×</button>
+            </div>
+            <div id="drawer-content" class="drawer-grid">
+            </div>
+        </div>
         
-        <div id="progress-tag" class="status-tag">Loading...</div>
+        <div id="overlay" class="overlay"></div>
+        <div class="quiz-container">
+            <h1>AWS Cloud Practitioner Practice Exam</h1>
+            
+            <div id="progress-tag" class="status-tag">Loading...</div>
+            
+            <div id="quiz"></div>
+            
+            <button id="submit">Submit Answer</button>
+            <button id="next">Next Question</button>
+            
+            <div id="results"></div>
+        </div>
         
-        <div id="quiz"></div>
-        
-        <button id="submit">Submit Answer</button>
-        <button id="next">Next Question</button>
-        
-        <div id="results"></div>
-    </div>
-    
-    <script src="script.js"></script>
-</body>
+        <script src="script.js"></script>
+    </body>
 </html>
