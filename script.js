@@ -206,8 +206,7 @@ loadQuestions();
 // --- DRAWER LOGIC ---
 
 function toggleDrawer() {
-    console.log("I WAS CLICKED!"); //
-    
+    console.log("I WAS CLICKED!"); // Debugging check
     const isOpen = drawer.classList.contains('open');
     if (isOpen) {
         drawer.classList.remove('open');
@@ -250,9 +249,9 @@ function renderDrawerGrid() {
 
         grid.appendChild(box);
     });
+} // <--- IMPORTANT: This brace closes renderDrawerGrid
 
-// Event Listeners for the Drawer
+// --- THESE MUST BE OUTSIDE THE FUNCTION ---
 document.getElementById('menu-btn').addEventListener('click', toggleDrawer);
 document.getElementById('close-btn').addEventListener('click', toggleDrawer);
 overlay.addEventListener('click', toggleDrawer);
-}
